@@ -64,6 +64,21 @@ services:
     depends_on:
       - kafka
 
+  analytics-service:
+    build:
+      context: ./analytics-service
+      dockerfile: Dockerfile
+
+    container_name: analytics-service
+
+    ports:
+      - "4002:4002"
+
+    depends_on:
+      - kafka
+
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
   patient-management:
     build:
