@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
 
-  postgres:
+  patient-management-db:
     image: postgres:15
     container_name: patient-management-db
 
@@ -15,7 +15,22 @@ services:
       - "5432:5432"
 
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - patient_management_data:/var/lib/postgresql/data
+
+  auth-service-db:
+    image: postgres:15
+    container_name: auth-service-db
+
+    environment:
+      POSTGRES_DB: auth_service
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+
+    ports:
+      - "5001:5432"
+
+    volumes:
+      - auth_service_data:/var/lib/postgresql/data
 
 
   zookeeper:
@@ -87,16 +102,13 @@ services:
 
     container_name: patient-management
 
-    ports:
-      - "4000:4000"
-
     depends_on:
-      - postgres
+      - patient-management-db
       - billing-service
       - kafka
 
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/patient_management
+      SPRING_DATASOURCE_URL: jdbc:postgresql://patient-management-db:5432/patient_management
       SPRING_DATASOURCE_USERNAME: admin
       SPRING_DATASOURCE_PASSWORD: password
 
@@ -105,6 +117,43 @@ services:
 
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
 
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+
+    container_name: api-gateway
+
+    ports:
+      - "4004:4004"
+
+    depends_on:
+      - patient-management
+      - auth-service
+
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+
+    container_name: auth-service
+
+    ports:
+      - "4005:4005"
+
+    depends_on:
+      - auth-service-db
+
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-service-db:5432/auth_service
+      SPRING_DATASOURCE_USERNAME: admin
+      SPRING_DATASOURCE_PASSWORD: password
+      JWT_SECRET: ${JWT_SECRET}
+
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_SQL_INIT_MODE: always
+
 
 volumes:
-  postgres_data:
+  patient_management_data:
+  auth_service_data:
